@@ -1,66 +1,42 @@
-use adw::prelude::*;
-use glib::clone;
-use gtk::glib;
+// call_so.rs
 
-fn main() -> glib::ExitCode {
-    // Initialize Gtk application
-    let app = adw::Application::builder()
-        .application_id("com.example.workbench")
-        .build();
+use std::ffi::CString;
 
-    app.connect_activate(build_ui);
-    app.run()
-}
+// Import the necessary items from the libc crate
+use libc::c_int;
 
-fn build_ui(app: &adw::Application) {
-    let builder = gtk::Builder::from_string(include_str!("main.xml"));
+fn main() {
+    let lib_path_str = "target/debug/libgtk_rs_c_api.so";
+    let lib_path_cstr = CString::new(lib_path_str).unwrap();
 
-    // Fetch the 'subtitle' box from the builder
-    let subtitle_box: gtk::Box = builder.object("subtitle").expect("Subtitle box not found");
+    unsafe {
+        let handle = libc::dlopen(lib_path_cstr.as_ptr(), libc::RTLD_NOW);
+        if handle.is_null() {
+            let error = libc::dlerror();
+            let error_message = CString::from_raw(error);
+            eprintln!(
+                "Error loading shared library '{}': {}",
+                lib_path_str,
+                error_message.to_string_lossy()
+            );
+            return;
+        }
 
-    // Create the button
-    let button = gtk::Button::builder()
-        .label("Press me")
-        .margin_top(6)
-        .css_classes(["suggested-action"])
-        .build();
+        // Call the C API function from the shared library
+        #[allow(temporary_cstring_as_ptr)]
+        let my_main_fn: Option<extern "C" fn() -> c_int> =
+            match libc::dlsym(handle, CString::new("my_main").unwrap().as_ptr()) {
+                ptr if !ptr.is_null() => Some(std::mem::transmute(ptr)),
+                _ => None,
+            };
 
-    // Append the button to the 'subtitle' box
-    subtitle_box.append(&button);
+        if let Some(my_main_fn) = my_main_fn {
+            let exit_code = my_main_fn();
+            println!("Exit code: {}", exit_code);
+        } else {
+            eprintln!("Error finding symbol 'my_main' in the shared library.");
+        }
 
-    let welcome_box: gtk::Box = builder.object("welcome").expect("Welcome box not found");
-
-    let window = adw::ApplicationWindow::builder()
-        .application(app)
-        .title("Workbench")
-        .content(&welcome_box) // Set the welcome_box as the main content
-        .build();
-
-    // Connect the 'clicked' signal to the greet function
-    button.connect_clicked(clone!(@weak window => move |_| greet(window)));
-
-    // Print a message
-    println!("Welcome to Workbench!");
-    window.show();
-}
-
-fn greet(parent_window: adw::ApplicationWindow) {
-    // Create the message dialog
-    let dialog = adw::MessageDialog::builder()
-        .body("Hello World!")
-        .transient_for(&parent_window)
-        .build();
-
-    dialog.add_responses(&[("ok", "Cancel")]);
-
-    // Connect the 'response' signal to the closure
-    dialog.connect_response(None, |dialog, response| {
-        // Print the response (e.g., gtk::ResponseType::Ok)
-        println!("{:?}", response);
-        // Close the dialog
-        dialog.close();
-    });
-
-    // Show the dialog
-    dialog.show();
+        libc::dlclose(handle);
+    }
 }

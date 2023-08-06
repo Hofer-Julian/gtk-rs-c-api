@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 adw = { version = "0.5.2", package = "libadwaita", features = ["v1_2"] }
 gtk = { version = "0.7.1", package = "gtk4" }
+libc = "0.2"
+
+[lib]
+crate-type = ["cdylib"]
