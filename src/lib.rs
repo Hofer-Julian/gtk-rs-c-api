@@ -15,7 +15,7 @@ static mut WINDOW: Option<gtk::Window> = None;
 static mut URI: Option<PathBuf> = None;
 
 #[no_mangle]
-extern "C" fn execute() -> c_int {
+extern "C" fn main() -> c_int {
     code::main().into()
 }
 
