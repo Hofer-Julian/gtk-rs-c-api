@@ -23,21 +23,40 @@ fn main() {
             );
         }
 
-        // Call the C API function from the shared library
-        let run_name = CString::new("run").unwrap();
-        let run_fn: Option<extern "C" fn(*mut gtk::ffi::GtkBuilder) -> c_int> = {
-            let ptr = libc::dlsym(handle, run_name.as_ptr());
-            std::mem::transmute(ptr)
-        };
-
-        if let Some(run_fn) = run_fn {
-            let builder = gtk::Builder::from_string(include_str!("main.xml"));
-            let exit_code = run_fn(builder.to_glib_full());
-            println!("Exit code: {}", exit_code);
-        } else {
-            panic!("Error finding symbol {run_name:?} in the shared library.");
-        }
+        let builder = gtk::Builder::from_string(include_str!("main.xml"));
+        set_builder(handle, builder);
+        run(handle);
 
         libc::dlclose(handle);
+    }
+}
+
+unsafe fn run(handle: *mut libc::c_void) {
+    let function_name = CString::new("run").unwrap();
+    let function: Option<extern "C" fn() -> c_int> = {
+        let ptr = libc::dlsym(handle, function_name.as_ptr());
+        std::mem::transmute(ptr)
+    };
+
+    if let Some(run_fn) = function {
+        let exit_code = run_fn();
+        println!("Exit code: {}", exit_code);
+    } else {
+        panic!("Error finding symbol {function_name:?} in the shared library.");
+    }
+}
+
+unsafe fn set_builder(handle: *mut libc::c_void, builder: gtk::Builder) {
+    let function_name = CString::new("set_builder").unwrap();
+    let function: Option<extern "C" fn(*mut gtk::ffi::GtkBuilder) -> c_int> = {
+        let ptr = libc::dlsym(handle, function_name.as_ptr());
+        std::mem::transmute(ptr)
+    };
+
+    if let Some(run_fn) = function {
+        let exit_code = run_fn(builder.to_glib_full());
+        println!("Exit code: {}", exit_code);
+    } else {
+        panic!("Error finding symbol {function_name:?} in the shared library.");
     }
 }
