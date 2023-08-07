@@ -2,19 +2,16 @@ use adw::prelude::*;
 use glib::clone;
 use gtk::glib;
 
-pub fn main() -> glib::ExitCode {
-    // Initialize Gtk application
+pub fn main(builder: gtk::Builder) -> glib::ExitCode {
     let app = adw::Application::builder()
         .application_id("com.example.workbench")
         .build();
 
-    app.connect_activate(build_ui);
+    app.connect_activate(clone!(@weak builder => move | app | build_ui(app, builder)));
     app.run()
 }
 
-fn build_ui(app: &adw::Application) {
-    let builder = gtk::Builder::from_string(include_str!("main.xml"));
-
+fn build_ui(app: &adw::Application, builder: gtk::Builder) {
     // Fetch the 'subtitle' box from the builder
     let subtitle_box: gtk::Box = builder.object("subtitle").expect("Subtitle box not found");
 

@@ -1,11 +1,13 @@
 // call_so.rs
 
+use glib::translate::ToGlibPtr;
+use gtk::glib;
+use libc::c_int;
 use std::ffi::CString;
 
-// Import the necessary items from the libc crate
-use libc::c_int;
-
 fn main() {
+    gtk::init().unwrap();
+
     let lib_path_str = "target/debug/libgtk_rs_c_api.so";
     let lib_path_cstr = CString::new(lib_path_str).unwrap();
 
@@ -14,27 +16,26 @@ fn main() {
         if handle.is_null() {
             let error = libc::dlerror();
             let error_message = CString::from_raw(error);
-            eprintln!(
+            panic!(
                 "Error loading shared library '{}': {}",
                 lib_path_str,
                 error_message.to_string_lossy()
             );
-            return;
         }
 
         // Call the C API function from the shared library
-        #[allow(temporary_cstring_as_ptr)]
-        let my_main_fn: Option<extern "C" fn() -> c_int> =
-            match libc::dlsym(handle, CString::new("my_main").unwrap().as_ptr()) {
-                ptr if !ptr.is_null() => Some(std::mem::transmute(ptr)),
-                _ => None,
-            };
+        let run_name = CString::new("run").unwrap();
+        let run_fn: Option<extern "C" fn(*mut gtk::ffi::GtkBuilder) -> c_int> = {
+            let ptr = libc::dlsym(handle, run_name.as_ptr());
+            std::mem::transmute(ptr)
+        };
 
-        if let Some(my_main_fn) = my_main_fn {
-            let exit_code = my_main_fn();
+        if let Some(run_fn) = run_fn {
+            let builder = gtk::Builder::from_string(include_str!("main.xml"));
+            let exit_code = run_fn(builder.to_glib_full());
             println!("Exit code: {}", exit_code);
         } else {
-            eprintln!("Error finding symbol 'my_main' in the shared library.");
+            panic!("Error finding symbol {run_name:?} in the shared library.");
         }
 
         libc::dlclose(handle);
