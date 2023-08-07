@@ -1,4 +1,4 @@
-use crate::builder;
+use crate::workbench;
 use adw::prelude::*;
 use glib::clone;
 use gtk::glib;
@@ -14,7 +14,7 @@ pub fn main() -> glib::ExitCode {
 
 fn build_ui(app: &adw::Application) {
     // Fetch the 'subtitle' box from the builder
-    let subtitle_box: gtk::Box = builder()
+    let subtitle_box: gtk::Box = workbench::builder()
         .object("subtitle")
         .expect("Subtitle box not found");
 
@@ -28,7 +28,9 @@ fn build_ui(app: &adw::Application) {
     // Append the button to the 'subtitle' box
     subtitle_box.append(&button);
 
-    let welcome_box: gtk::Box = builder().object("welcome").expect("Welcome box not found");
+    let welcome_box: gtk::Box = workbench::builder()
+        .object("welcome")
+        .expect("Welcome box not found");
 
     let window = gtk::ApplicationWindow::builder()
         .application(app)

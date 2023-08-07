@@ -1,4 +1,5 @@
-pub mod code;
+mod code;
+pub(crate) mod workbench;
 
 use glib::translate::FromGlibPtrFull;
 use gtk::glib;
@@ -18,12 +19,4 @@ extern "C" fn set_builder(builder_ptr: *mut gtk::ffi::GtkBuilder) -> c_int {
         BUILDER = Some(gtk_builder);
     }
     EXIT_SUCCESS
-}
-
-pub fn builder() -> &'static gtk::Builder {
-    unsafe {
-        BUILDER
-            .as_ref()
-            .expect("Builder instance should already be initialized.")
-    }
 }
