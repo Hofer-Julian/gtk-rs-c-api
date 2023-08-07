@@ -2,7 +2,7 @@
 
 use glib::translate::ToGlibPtr;
 use gtk::glib;
-use libc::c_int;
+use libc::{c_int, EXIT_SUCCESS};
 use std::ffi::CString;
 
 fn main() {
@@ -25,38 +25,45 @@ fn main() {
 
         let builder = gtk::Builder::from_string(include_str!("main.xml"));
         set_builder(handle, builder);
-        run(handle);
+        let window = gtk::Window::new();
+        set_window(handle, window);
+        execute(handle);
 
         libc::dlclose(handle);
     }
 }
 
-unsafe fn run(handle: *mut libc::c_void) {
-    let function_name = CString::new("run").unwrap();
-    let function: Option<extern "C" fn() -> c_int> = {
+unsafe fn execute(handle: *mut libc::c_void) {
+    let function_name = CString::new("execute").unwrap();
+    let function = {
         let ptr = libc::dlsym(handle, function_name.as_ptr());
-        std::mem::transmute(ptr)
+        let function: Option<extern "C" fn() -> c_int> = std::mem::transmute(ptr);
+        function.expect("Error finding symbol {function_name:?} in the shared library.")
     };
-
-    if let Some(run_fn) = function {
-        let exit_code = run_fn();
-        println!("Exit code: {}", exit_code);
-    } else {
-        panic!("Error finding symbol {function_name:?} in the shared library.");
-    }
+    let exit_code = function();
+    assert_eq!(exit_code, EXIT_SUCCESS)
 }
 
 unsafe fn set_builder(handle: *mut libc::c_void, builder: gtk::Builder) {
     let function_name = CString::new("set_builder").unwrap();
-    let function: Option<extern "C" fn(*mut gtk::ffi::GtkBuilder) -> c_int> = {
+    let function = {
         let ptr = libc::dlsym(handle, function_name.as_ptr());
-        std::mem::transmute(ptr)
+        let function: Option<extern "C" fn(*mut gtk::ffi::GtkBuilder) -> c_int> =
+            std::mem::transmute(ptr);
+        function.expect("Error finding symbol {function_name:?} in the shared library.")
     };
+    let exit_code = function(builder.to_glib_full());
+    assert_eq!(exit_code, EXIT_SUCCESS)
+}
 
-    if let Some(run_fn) = function {
-        let exit_code = run_fn(builder.to_glib_full());
-        println!("Exit code: {}", exit_code);
-    } else {
-        panic!("Error finding symbol {function_name:?} in the shared library.");
-    }
+unsafe fn set_window(handle: *mut libc::c_void, window: gtk::Window) {
+    let function_name = CString::new("set_window").unwrap();
+    let function = {
+        let ptr = libc::dlsym(handle, function_name.as_ptr());
+        let function: Option<extern "C" fn(*mut gtk::ffi::GtkWindow) -> c_int> =
+            std::mem::transmute(ptr);
+        function.expect("Error finding symbol {function_name:?} in the shared library.")
+    };
+    let exit_code = function(window.to_glib_full());
+    assert_eq!(exit_code, EXIT_SUCCESS)
 }
